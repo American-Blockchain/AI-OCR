@@ -1,0 +1,7 @@
+google-generativeai
+transformers
+torch
+torchvision
+torchaudio
+vllm==0.8.5
+
