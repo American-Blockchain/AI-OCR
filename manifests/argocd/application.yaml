@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-ocr
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/American-Blockchain/AI-OCR.git # Replace with your actual repository URL
+    targetRevision: HEAD # Or a specific branch/tag
+    path: helm/ai-ocr
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.repository
+          value: "REPLACE_WITH_YOUR_REGISTRY/ai-ocr" # This will be updated by the CI pipeline
+        - name: image.tag
+          value: "latest" # This will be updated by the CI pipeline
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default # Or a dedicated namespace for the application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

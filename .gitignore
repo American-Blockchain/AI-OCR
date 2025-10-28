@@ -1,20 +1,34 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+.venv/
 
-# Environments
-.env
-.venv
-
-# IDEs
-.vscode/
-.idea/
-
-# Build artifacts
+# Production
 dist/
 build/
-*.egg-info/
 
-# DeepSeek-OCR output
-deepseek_ocr_output/
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Misc
+.cache/
+.turbo/
+

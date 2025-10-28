@@ -1,0 +1,57 @@
+name: GKE Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }} # or GKE_REGION
+  GAR_LOCATION: us-central1 # e.g., us-central1
+  IMAGE_NAME: ai-ocr
+  IMAGE_TAG: ${{ github.sha }}
+  HELM_CHART_PATH: helm/ai-ocr
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Docker configuration for GAR
+      run: |
+        gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+
+    - name: Build and push Docker image
+      run: |
+        IMAGE_URI=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        docker build -t $IMAGE_URI -f docker_build/Dockerfile .
+        docker push $IMAGE_URI
+
+    - name: Get GKE credentials
+      uses: google-github-actions/get-gke-credentials@v2
+      with:
+        cluster_name: ${{ env.GKE_CLUSTER_NAME }}
+        location: ${{ env.GKE_ZONE }}
+        
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    - name: Deploy to GKE with Helm
+      run: |
+        IMAGE_URI=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}/${{ env.IMAGE_NAME }}
+        helm upgrade --install ${{ env.IMAGE_NAME }} ${{ env.HELM_CHART_PATH }} \
+          --set image.repository="${IMAGE_URI}" \
+          --set image.tag="${{ env.IMAGE_TAG }}" \
+          --wait \
+          --timeout 5m

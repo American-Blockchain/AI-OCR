@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  ai-ocr-service:
+    build:
+      context: .
+      dockerfile: docker_build/Dockerfile
+    image: ai-ocr-test:latest
+    container_name: ai-ocr-service
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the source code for easier development and testing
+      - ./src:/app/src
+    environment:
+      # Set dummy environment variables for local testing
+      GEMINI_API_KEY: "DUMMY_GEMINI_KEY"
+      GPT_API_KEY: "DUMMY_GPT_KEY"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
