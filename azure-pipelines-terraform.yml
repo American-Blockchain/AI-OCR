@@ -1,0 +1,129 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Lint
+  jobs:
+  - job: Lint
+    steps:
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: 'latest'
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+      displayName: 'Terraform Format'
+      inputs:
+        command: 'fmt'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        commandOptions: '-check'
+
+- stage: Validate
+  jobs:
+  - job: Validate
+    steps:
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: 'latest'
+    - task: AzureCLI@2
+      displayName: 'Azure CLI login'
+      inputs:
+        azureSubscription: 'aiocr-connection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az login --service-principal -u $(servicePrincipalId) -p $(servicePrincipalKey) --tenant $(tenantId)
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+      displayName: 'Terraform Init'
+      inputs:
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        backendType: 'azurerm'
+        backendServiceArm: 'aiocr-connection'
+        backendAzureRmResourceGroupName: 'ai-ocr'
+        backendAzureRmStorageAccountName: 'ai-ocr1'
+        backendAzureRmContainerName: 'aiocr'
+        backendAzureRmKey: 'ai-foundry.tfstate'
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+      displayName: 'Terraform Validate'
+      inputs:
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+
+- stage: Plan
+  jobs:
+  - job: Plan
+    steps:
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: 'latest'
+    - task: AzureCLI@2
+      displayName: 'Azure CLI login'
+      inputs:
+        azureSubscription: 'aiocr-connection'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az login --service-principal -u $(servicePrincipalId) -p $(servicePrincipalKey) --tenant $(tenantId)
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+      displayName: 'Terraform Init'
+      inputs:
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        backendType: 'azurerm'
+        backendServiceArm: 'aiocr-connection'
+        backendAzureRmResourceGroupName: 'ai-ocr'
+        backendAzureRmStorageAccountName: 'ai-ocr1'
+        backendAzureRmContainerName: 'aiocr'
+        backendAzureRmKey: 'ai-foundry.tfstate'
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+      displayName: 'Terraform Plan'
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        commandOptions: '-out=tfplan'
+
+- stage: Apply
+  jobs:
+  - deployment: Apply
+    displayName: 'Apply Terraform Plan'
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: 'latest'
+          - task: AzureCLI@2@
+            displayName: 'Azure CLI login'
+            inputs:
+              azureSubscription: 'aiocr-connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az login --service-principal -u $(servicePrincipalId) -p $(servicePrincipalKey) --tenant $(tenantId)
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+            displayName: 'Terraform Init'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              backendType: 'azurerm'
+              backendServiceArm: 'aiocr-connection'
+              backendAzureRmResourceGroupName: 'ai-ocr'
+              backendAzureRmStorageAccountName: 'ai-ocr1'
+              backendAzureRmContainerName: 'aiocr'
+              backendAzureRmKey: 'ai-foundry.tfstate'
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-command-task.TerraformTaskV2@2
+            displayName: 'Terraform Apply'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              commandOptions: 'tfplan'
