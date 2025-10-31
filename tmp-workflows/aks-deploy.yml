@@ -1,3 +1,15 @@
+# AKS Deployment Workflow
+# 
+# Required GitHub Secrets:
+# - CLIENT_ID: Azure Service Principal Client ID
+# - TENANT_ID: Azure Tenant ID  
+# - SP_PASSWORD: Azure Service Principal Client Secret
+# - AZURE_RESOURCE_GROUP: Azure Resource Group name
+# - AZURE_CLUSTER_NAME: AKS Cluster name
+# - ACR_NAME: Azure Container Registry name
+#
+# Service Connection Name: aiocr-connection
+
 name: AKS Deployment
 
 on:
@@ -24,7 +36,9 @@ jobs:
     - name: Azure Login
       uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        client-secret: ${{ secrets.SP_PASSWORD }}
 
     - name: ACR Login
       run: |
