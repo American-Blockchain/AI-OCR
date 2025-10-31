@@ -1,0 +1,110 @@
+# Azure Secrets Configuration for GitHub Actions
+
+This document outlines the required secrets configuration for the AKS deployment workflow.
+
+## Required GitHub Repository Secrets
+
+Configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions`):
+
+### Azure Service Principal Authentication
+- **`CLIENT_ID`**: Azure Service Principal Client ID (Application ID)
+- **`TENANT_ID`**: Azure Active Directory Tenant ID
+- **`SP_PASSWORD`**: Azure Service Principal Client Secret (Password/Key)
+
+### Azure Resources
+- **`AZURE_RESOURCE_GROUP`**: Name of the Azure Resource Group containing your AKS cluster
+- **`AZURE_CLUSTER_NAME`**: Name of your Azure Kubernetes Service (AKS) cluster
+- **`ACR_NAME`**: Name of your Azure Container Registry (without .azurecr.io suffix)
+
+## Service Connection Configuration
+
+### Service Connection Name
+```
+aiocr-connection
+```
+
+## How to Obtain These Values
+
+### 1. Service Principal Information
+If you don't have a service principal, create one using Azure CLI:
+
+```bash
+# Create service principal
+az ad sp create-for-rbac --name "aiocr-sp" --role contributor --scopes /subscriptions/{subscription-id}
+```
+
+This will output:
+```json
+{
+  "appId": "your-client-id",           # Use for CLIENT_ID
+  "displayName": "aiocr-sp",
+  "password": "your-client-secret",    # Use for SP_PASSWORD
+  "tenant": "your-tenant-id"           # Use for TENANT_ID
+}
+```
+
+### 2. Azure Resource Information
+```bash
+# Get resource group name
+az group list --query "[].name" -o table
+
+# Get AKS cluster name
+az aks list --query "[].name" -o table
+
+# Get ACR name
+az acr list --query "[].name" -o table
+
+# Get tenant ID
+az account show --query "tenantId" -o tsv
+```
+
+## Required Permissions
+
+The service principal needs the following permissions:
+- **Contributor** role on the Resource Group containing AKS and ACR
+- **AcrPush** role on the Azure Container Registry
+- **Azure Kubernetes Service Cluster User Role** on the AKS cluster
+
+### Assign Permissions
+```bash
+# Assign Contributor role to resource group
+az role assignment create --assignee {CLIENT_ID} --role Contributor --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group-name}
+
+# Assign AcrPush role to ACR
+az role assignment create --assignee {CLIENT_ID} --role AcrPush --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/Microsoft.ContainerRegistry/registries/{acr-name}
+
+# Assign AKS Cluster User role
+az role assignment create --assignee {CLIENT_ID} --role "Azure Kubernetes Service Cluster User Role" --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/Microsoft.ContainerService/managedClusters/{aks-cluster-name}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Login failed with Error: Using auth-type: SERVICE_PRINCIPAL"**
+   - Ensure all three secrets are configured: `CLIENT_ID`, `TENANT_ID`, `SP_PASSWORD`
+   - Verify the service principal credentials are correct
+
+2. **"ACR login failed"**
+   - Ensure the service principal has `AcrPush` role on the ACR
+   - Verify the `ACR_NAME` secret contains only the registry name (not the full URL)
+
+3. **"AKS context setup failed"**
+   - Ensure the service principal has appropriate AKS permissions
+   - Verify `AZURE_RESOURCE_GROUP` and `AZURE_CLUSTER_NAME` are correct
+
+## Security Best Practices
+
+1. **Principle of Least Privilege**: Only assign the minimum required permissions
+2. **Secret Rotation**: Regularly rotate the service principal client secret
+3. **Monitoring**: Enable Azure AD audit logs to monitor service principal usage
+4. **Environment Separation**: Use different service principals for different environments (dev/staging/prod)
+
+## Verification
+
+After configuring the secrets, you can verify the setup by running the GitHub Actions workflow. The workflow will:
+1. Authenticate with Azure using the service principal
+2. Login to ACR using Azure CLI
+3. Build and push the Docker image
+4. Deploy to AKS using Helm
+5. List all pods for debugging
