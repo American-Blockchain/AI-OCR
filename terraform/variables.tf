@@ -33,3 +33,9 @@ variable "node_count" {
   type        = number
   default     = 2
 }
+
+variable "acr_name" {
+  description = "Name of the Azure Container Registry"
+  type        = string
+  default     = "aifoundryacr"
+}
