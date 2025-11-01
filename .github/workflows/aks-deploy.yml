@@ -6,7 +6,7 @@
 # - SP_PASSWORD: Azure Service Principal client secret
 # - AZURE_RESOURCE_GROUP: Azure Resource Group name
 # - AZURE_CLUSTER_NAME: AKS Cluster name
-# - ACR_NAME: Azure Container Registry name
+# - ACR_NAME: Azure Container Registry name 1
 
 name: AKS Deployment
 
