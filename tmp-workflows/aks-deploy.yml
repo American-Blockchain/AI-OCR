@@ -33,21 +33,30 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Azure Login
+    - name: Azure Login (Service Principal)
       uses: azure/login@v2
       with:
         client-id: ${{ secrets.CLIENT_ID }}
         tenant-id: ${{ secrets.TENANT_ID }}
         client-secret: ${{ secrets.SP_PASSWORD }}
 
-    - name: ACR Login
+    - name: Verify Azure login
+      run: az account show
+
+    - name: ACR Login (via az)
       run: |
         az acr login --name ${{ env.ACR_NAME }}
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Build and push Docker image
-      run: |
-        docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f docker_build/Dockerfile .
-        docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: docker_build/Dockerfile
+        push: true
+        tags: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
     - name: Set up Kubeconfig for AKS
       id: aks-set-context
@@ -56,6 +65,12 @@ jobs:
         resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
         cluster-name: ${{ env.AZURE_CLUSTER_NAME }}
         
+    - name: Export KUBECONFIG (make kubeconfig available to later steps)
+      if: steps.aks-set-context.outputs.kubeconfig != ''
+      run: |
+        echo "${{ steps.aks-set-context.outputs.kubeconfig }}" > kubeconfig
+        echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+
     - name: Install Helm
       uses: azure/setup-helm@v4
 
