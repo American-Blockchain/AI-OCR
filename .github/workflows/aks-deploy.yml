@@ -41,9 +41,7 @@ jobs:
       - name: Azure Login (Service Principal)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.CLIENT_ID }}
-          tenant-id: ${{ secrets.TENANT_ID }}
-          client-secret: ${{ secrets.SP_PASSWORD }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: (Optional) Set subscription if provided
         if: ${{ secrets.AZURE_SUBSCRIPTION_ID != '' }}
